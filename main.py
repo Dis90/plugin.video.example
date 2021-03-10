@@ -7,6 +7,7 @@ Example video plugin that is compatible with Kodi 19.x "Matrix" and above
 """
 import sys
 from urllib.parse import urlencode, parse_qsl
+import xbmc
 import xbmcgui
 import xbmcplugin
 
@@ -59,6 +60,10 @@ VIDEOS = {'Animals': [{'name': 'Crab',
                       'genre': 'Food'}
                      ]}
 
+
+def log(string):
+    msg = '%s: %s' % ('Test addon', string)
+    xbmc.log(msg=msg, level=xbmc.LOGDEBUG)
 
 def get_url(**kwargs):
     """
@@ -171,9 +176,9 @@ def list_videos(category):
         list_item = xbmcgui.ListItem(label=video['name'])
         # Set additional info for the list item.
         # 'mediatype' is needed for skin to display info for this ListItem correctly.
-        list_item.setInfo('video', {'title': video['name'],
-                                    'genre': video['genre'],
-                                    'mediatype': 'video'})
+        #list_item.setInfo('video', {'title': video['name'],
+        #                            'genre': video['genre'],
+        #                            'mediatype': 'episode'})
         # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
@@ -204,9 +209,54 @@ def play_video(path):
     """
     # Create a playable item with a path to play.
     play_item = xbmcgui.ListItem(path=path)
-    # Pass the item to the Kodi player.
-    xbmcplugin.setResolvedUrl(_HANDLE, True, listitem=play_item)
 
+    info = {
+        'mediatype': 'episode',
+        'title': 'Episode 1',
+        'tvshowtitle': 'Show name',
+        'season': '1',
+        'episode': '2',
+        'plot': 'Abcd',
+        'duration': '100',
+        'aired': '2008-12-07'
+    }
+
+    play_item.setInfo('video', info)
+
+    log('Listitem videoinfo')
+    log('Episode title: %s' % play_item.getVideoInfoTag().getTitle())
+    log('TVshow title: %s' % play_item.getVideoInfoTag().getTVShowTitle())
+    log('Mediatype: %s' % play_item.getVideoInfoTag().getMediaType())
+
+    player = KodiPlayer()
+    # Pass the item to the Kodi player.
+    #xbmcplugin.setResolvedUrl(_HANDLE, True, listitem=play_item)
+    player.resolve(play_item)
+
+    monitor = xbmc.Monitor()
+    while not monitor.abortRequested():
+        if player.isPlayingVideo() and player.playing:
+            log('Player videoinfo')
+            log('Episode title: %s' % player.getVideoInfoTag().getTitle())
+            log('TVshow title: %s' % player.getVideoInfoTag().getTVShowTitle())
+            log('Mediatype: %s' % player.getVideoInfoTag().getMediaType())
+        xbmc.sleep(1000)
+
+class KodiPlayer(xbmc.Player):
+    def __init__(self):
+        self.playing = False
+
+    def resolve(self, li):
+        xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, listitem=li)
+        self.playing = True
+
+    def onPlayBackEnded(self):  # pylint: disable=invalid-name
+        """Called when Kodi has ended playing a file"""
+        self.playing = False
+
+    def onPlayBackStopped(self):  # pylint: disable=invalid-name
+        """Called when user stops Kodi playing a file"""
+        self.playing = False
 
 def router(paramstring):
     """
